@@ -151,7 +151,7 @@ class DLv3Plus(base.BenchmarkMethod):
             Y = {key: Y[key].to(self.device, non_blocking=True) for key in ['mask']}
 
             # Runs the forward pass with autocasting for mixed precission.
-            with autocast():
+            with autocast(self.amp_device):
                 # forward + backward + optimize
                 outputs = self.model(X)
 
@@ -191,7 +191,7 @@ class DLv3Plus(base.BenchmarkMethod):
             Y = {key: Y[key].to(self.device, non_blocking=True) for key in ['mask']}
 
             # Runs the forward pass with autocasting for mixed precission.
-            with autocast():
+            with autocast(self.amp_device):
                 # forward + backward + optimize
                 outputs = self.model(X)
 
@@ -209,16 +209,9 @@ class DLv3Plus(base.BenchmarkMethod):
         return test_metrics, preds_logged_test, y_logged_test
 
     def load_model(self, model_name='best_model.pth'):
-        if self.device == 'cuda:0':
-            checkpoint = torch.load(model_name, map_location='cpu')
-            self.model.load_state_dict(checkpoint['model_state_dict'])
-            self.model.to(self.device)
-        else:
-            checkpoint = torch.load(model_name, map_location='cpu')
-            self.model.load_state_dict(checkpoint['model_state_dict'])
-
+        checkpoint = torch.load(model_name, map_location='cpu')
+        self.model.load_state_dict(checkpoint['model_state_dict'])
         self.model.to(self.device)
-        return
 
     def print_run_info(self):
         """
