@@ -8,7 +8,8 @@ import glob
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
 from tqdm import tqdm
-from torch.cuda.amp import autocast, GradScaler
+from torch.amp import autocast
+from torch.cuda.amp import GradScaler
 
 import torch
 import numpy as np
@@ -35,6 +36,7 @@ class DLv3Plus(base.BenchmarkMethod):
 
         self.n_workers = 8
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        self.amp_device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
         self.best_score = 0
 
@@ -66,7 +68,7 @@ class DLv3Plus(base.BenchmarkMethod):
         self.print_run_info()
         self.model.to(self.device)
 
-        scaler = GradScaler()
+        scaler = torch.amp.GradScaler('cuda') if torch.cuda.is_available() else torch.amp.GradScaler('cpu')
 
         for epoch in tqdm(range(self.epochs), desc="Training \t", bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}'):
             temp_score = 0
@@ -83,7 +85,7 @@ class DLv3Plus(base.BenchmarkMethod):
                 Y = {key: Y[key].to(self.device, non_blocking=True) for key in ['mask']}
 
                 # Runs the forward pass with autocasting for mixed precission.
-                with autocast():
+                with autocast(self.amp_device):
                     # forward + backward + optimize
                     outputs = self.model(X)
                     loss = self.criterion(outputs['mask'], Y['mask'].long().squeeze(1))
@@ -113,7 +115,7 @@ class DLv3Plus(base.BenchmarkMethod):
                 Y = {key: Y[key].to(self.device, non_blocking=True) for key in ['mask']}
 
                 # Runs the forward pass with autocasting for mixed precision.
-                with autocast():
+                with autocast(self.amp_device):
                     outputs = self.model(X)
 
                 # remove the image pads
@@ -230,7 +232,8 @@ class DLv3Plus(base.BenchmarkMethod):
         print()
         print('Starting training of the model')
         print('Training is using: ' + str(self.device))
-        print(torch.cuda.get_device_name(0))
+        if torch.cuda.is_available():
+            print(torch.cuda.get_device_name(0))
         print("-" * 80)
         print()
 

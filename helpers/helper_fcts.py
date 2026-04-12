@@ -31,22 +31,22 @@ class EWS_Dataset(Dataset):
 
         sample = {}
 
-        iso = np.float(metadata['iso'])
+        iso = float(metadata['iso'])
         iso = np.log2(iso / 100)
 
         fnumber = metadata['fnumber']
         if '/' in fnumber:
             num, den = fnumber.split('/')
-            fnumber = np.float((float(num) / float(den)))
+            fnumber = float(num) / float(den)
         else:
-            fnumber = np.float(fnumber)
+            fnumber = float(fnumber)
 
         exposure = metadata['exposure']
         if '/' in exposure:
             num, den = exposure.split('/')
-            exposure = np.float((float(num) / float(den)))
+            exposure = float(num) / float(den)
         else:
-            exposure = np.float(exposure)
+            exposure = float(exposure)
 
         sample.update({'iso': iso, 'fnumber': fnumber, 'exposure': exposure})
         image_pair = self.transforms({'image': image, 'mask': mask})
