@@ -44,7 +44,7 @@ class BenchmarkMethod:
 
                 scores.update({'accuracy: ': accuracy_score(y_i, pred_i)})
 
-                statistics = statistics.append(scores, ignore_index=True)
+                statistics = pd.concat([statistics, pd.DataFrame([scores])], ignore_index=True)
 
         return statistics.mean(axis=0).to_dict()
 
