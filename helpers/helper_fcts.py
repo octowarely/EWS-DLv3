@@ -163,11 +163,11 @@ class RandomRotate(object):
 
     def __call__(self, sample):
         angle = np.random.randint(0, self.angle)
-        sample['image'] = rotate(sample['image'], angle, resample=None, expand=False, center=None, fill=None,
+        sample['image'] = rotate(sample['image'], angle, expand=False, center=None, fill=None,
                                  interpolation=InterpolationMode.BILINEAR)
 
         if 'mask' in sample.keys():
-            sample['mask'] = rotate(sample['mask'], angle, resample=None, expand=False, center=None, fill=None,
+            sample['mask'] = rotate(sample['mask'], angle, expand=False, center=None, fill=None,
                                     interpolation=InterpolationMode.NEAREST)
 
         return sample
