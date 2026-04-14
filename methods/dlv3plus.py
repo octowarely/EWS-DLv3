@@ -19,6 +19,20 @@ from helpers.helper_fcts import PadInput, RandomCrop, EncodedToTensor, RandomRot
     RandomHorizontalFlip, RandomVerticalFlip, Normalize, iou, EWS_Dataset
 
 
+class CombinedLoss(nn.Module):
+
+    def __init__(self, dice_weight=0.5, ce_weight=0.5):
+        super().__init__()
+        self.dice_weight = dice_weight
+        self.ce_weight = ce_weight
+        self.dice = smp.losses.DiceLoss(mode='multiclass')
+        self.ce = nn.CrossEntropyLoss()
+
+    def forward(self, pred, target):
+        return self.dice_weight * self.dice(pred, target.long().squeeze(1)) + \
+               self.ce_weight * self.ce(pred, target.long().squeeze(1))
+
+
 class DLv3Plus(base.BenchmarkMethod):
     def __init__(self, pretrained):
         super().__init__()
@@ -31,8 +45,13 @@ class DLv3Plus(base.BenchmarkMethod):
 
         self.lr = 0.1
         self.momentum = 0.9
-        self.criterion = torch.nn.CrossEntropyLoss()
+        # Dice + CrossEntropy combined loss
+        self.criterion = CombinedLoss(dice_weight=0.5, ce_weight=0.5)
         self.optimizer = torch.optim.SGD(lr=self.lr, momentum=self.momentum, params=self.model.parameters())
+        # CosineAnnealingLR scheduler
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            self.optimizer, T_max=self.epochs, eta_min=1e-5
+        )
 
         self.n_workers = 8
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -88,7 +107,7 @@ class DLv3Plus(base.BenchmarkMethod):
                 with autocast(self.amp_device):
                     # forward + backward + optimize
                     outputs = self.model(X)
-                    loss = self.criterion(outputs['mask'], Y['mask'].long().squeeze(1))
+                    loss = self.criterion(outputs['mask'], Y['mask'])
 
                 for param in self.model.parameters():
                     param.grad = None
@@ -105,6 +124,9 @@ class DLv3Plus(base.BenchmarkMethod):
                     (n_samples, -1)).cpu()
 
             del loss, outputs, preds
+
+            # --- ADDED: step lr scheduler after each epoch ---
+            self.scheduler.step()
 
             # Track a given validation metric to keep the best performing model
             self.model.eval()
