@@ -43,14 +43,14 @@ class DLv3Plus(base.BenchmarkMethod):
         self.batchsize = 16
         self.eval_batchsize = 4
 
-        self.lr = 0.1
-        self.momentum = 0.9
+        self.lr = 1e-4
         # Dice + CrossEntropy combined loss
         self.criterion = CombinedLoss(dice_weight=0.5, ce_weight=0.5)
-        self.optimizer = torch.optim.SGD(lr=self.lr, momentum=self.momentum, params=self.model.parameters())
+        # --- MODIFIED: AdamW optimizer (was: SGD lr=0.1, momentum=0.9) ---
+        self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr, weight_decay=1e-4)
         # CosineAnnealingLR scheduler
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            self.optimizer, T_max=self.epochs, eta_min=1e-5
+            self.optimizer, T_max=self.epochs, eta_min=1e-6
         )
 
         self.n_workers = 8
