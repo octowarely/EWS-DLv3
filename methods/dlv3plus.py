@@ -46,7 +46,7 @@ class DLv3Plus(base.BenchmarkMethod):
         self.lr = 1e-4
         # Dice + CrossEntropy combined loss
         self.criterion = CombinedLoss(dice_weight=0.5, ce_weight=0.5)
-        # --- MODIFIED: AdamW optimizer (was: SGD lr=0.1, momentum=0.9) ---
+        # AdamW optimizer
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr, weight_decay=1e-4)
         # CosineAnnealingLR scheduler
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
@@ -102,7 +102,7 @@ class DLv3Plus(base.BenchmarkMethod):
                 X = {key: X[key].to(self.device, non_blocking=True) for key in ['image', 'iso', 'fnumber', 'exposure']}
                 Y = {key: Y[key].to(self.device, non_blocking=True) for key in ['mask']}
 
-                # Runs the forward pass with autocasting for mixed precission.
+                # Runs the forward pass
                 with autocast(self.amp_device):
                     # forward + backward + optimize
                     outputs = self.model(X)
@@ -115,7 +115,7 @@ class DLv3Plus(base.BenchmarkMethod):
                 scaler.step(self.optimizer)
                 scaler.update()
 
-                # log predictions and labels for metrics later
+                # log predictions and labels
                 n_samples = Y['mask'].shape[0]
                 preds = torch.argmax(outputs['mask'], dim=1).reshape((n_samples, -1))
                 preds_logged_train[i * self.batchsize: i * self.batchsize + n_samples] = preds.cpu()

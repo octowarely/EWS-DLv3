@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 from PIL import Image as PILImage
 from methods.dlv3plus import DLv3Plus
 
-# Ensure working directory is the script's directory (needed for relative data paths)
 abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
 os.chdir(dname)
@@ -34,12 +33,13 @@ print('Test metrics:')
 for k, v in test_metrics.items():
     print(f'  {k}: {v:.4f}')
 
-# Per-class average summary
-plant_keys = [k for k in test_metrics if 'plants' in k]
-soil_keys  = [k for k in test_metrics if 'soil' in k]
-print('\nVegetation (plants) average: {:.4f}'.format(np.mean([test_metrics[k] for k in plant_keys])))
-print('Soil average:                {:.4f}'.format(np.mean([test_metrics[k] for k in soil_keys])))
-print('  (averaged over: f1, precision, recall, IoU)')
+# Per-metric per-class summary
+print('\n{:<12} {:>10} {:>10} {:>10}'.format('Metric', 'Plants', 'Soil', 'Average'))
+print('-' * 46)
+for metric in ['f1', 'precision', 'recall', 'IoU']:
+    v_plant = test_metrics.get(f'{metric} - class: plants', float('nan'))
+    v_soil  = test_metrics.get(f'{metric} - class: soil',   float('nan'))
+    print('{:<12} {:>10.4f} {:>10.4f} {:>10.4f}'.format(metric, v_plant, v_soil, (v_plant + v_soil) / 2))
 
 # Visualization: Original / Ground Truth / Prediction
 test_paths = sorted(glob.glob('data/test/*6.png'))
