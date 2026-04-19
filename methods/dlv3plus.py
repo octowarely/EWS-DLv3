@@ -53,7 +53,7 @@ class DLv3Plus(base.BenchmarkMethod):
             self.optimizer, T_max=self.epochs, eta_min=1e-6
         )
 
-        self.n_workers = 8
+        self.n_workers = 0
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.amp_device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -67,7 +67,7 @@ class DLv3Plus(base.BenchmarkMethod):
 
     def train(self, train_path='data/train', val_path='data/validation'):
         # Get all the paths to training images
-        train_paths = glob.glob(train_path + '/*6.png')  # This rejects all *mask.png paths
+        train_paths = glob.glob(train_path + '/*6.png')  # Rejects all *mask.png paths
         train_dataset = EWS_Dataset(train_paths, self.get_transforms(testval=False))
         train_dataloader = DataLoader(train_dataset,
                                       batch_size=self.batchsize,
@@ -75,8 +75,7 @@ class DLv3Plus(base.BenchmarkMethod):
                                       num_workers=self.n_workers,
                                       pin_memory=True)
 
-        # Get all the paths to validation images
-        val_paths = glob.glob(val_path + '/*6.png')  # This rejects all *mask.png paths
+        val_paths = glob.glob(val_path + '/*6.png')
         val_dataset = EWS_Dataset(val_paths, self.get_transforms(testval=True))
         val_dataloader = DataLoader(val_dataset,
                                     batch_size=int(self.eval_batchsize),
@@ -125,10 +124,10 @@ class DLv3Plus(base.BenchmarkMethod):
 
             del loss, outputs, preds
 
-            # --- ADDED: step lr scheduler after each epoch ---
+            # step lr scheduler after each epoch
             self.scheduler.step()
 
-            # Track a given validation metric to keep the best performing model
+            # Track metric to keep best model
             self.model.eval()
             self.model.eval_size()
 
@@ -136,14 +135,12 @@ class DLv3Plus(base.BenchmarkMethod):
                 X = {key: X[key].to(self.device, non_blocking=True) for key in ['image']}
                 Y = {key: Y[key].to(self.device, non_blocking=True) for key in ['mask']}
 
-                # Runs the forward pass with autocasting for mixed precision.
                 with autocast(self.amp_device):
                     outputs = self.model(X)
 
                 # remove the image pads
                 outputs['mask'] = outputs['mask'][:, :, :350, :350]
 
-                # log predictions and labels for metrics later
                 temp_iou = iou('mask', outputs, Y, self.device, 0).sum().cpu()
                 temp_score += temp_iou[temp_iou.isfinite()].sum().numpy()
 
@@ -172,15 +169,11 @@ class DLv3Plus(base.BenchmarkMethod):
             X = {key: X[key].to(self.device, non_blocking=True) for key in ['image']}
             Y = {key: Y[key].to(self.device, non_blocking=True) for key in ['mask']}
 
-            # Runs the forward pass with autocasting for mixed precission.
             with autocast(self.amp_device):
-                # forward + backward + optimize
                 outputs = self.model(X)
 
-            # remove the image pads
             outputs['mask'] = outputs['mask'][:, :, :350, :350]
 
-            # log predictions and labels for metrics later
             n_samples = Y['mask'].shape[0]
             preds = torch.argmax(outputs['mask'], dim=1).reshape((n_samples, -1))
             preds_logged_val[i * self.eval_batchsize: i * self.eval_batchsize + n_samples] = preds.cpu()
@@ -191,8 +184,7 @@ class DLv3Plus(base.BenchmarkMethod):
         return train_metrics, val_metrics
 
     def test(self, test_path='data/test'):
-        # Get all the paths to test images
-        test_paths = sorted(glob.glob(test_path + '/*6.png'))  # This rejects all *mask.png paths
+        test_paths = sorted(glob.glob(test_path + '/*6.png'))
         test_dataset = EWS_Dataset(test_paths, self.get_transforms(testval=True))
         test_dataloader = DataLoader(test_dataset,
                                      batch_size=int(self.eval_batchsize),
@@ -212,15 +204,12 @@ class DLv3Plus(base.BenchmarkMethod):
             X = {key: X[key].to(self.device, non_blocking=True) for key in ['image']}
             Y = {key: Y[key].to(self.device, non_blocking=True) for key in ['mask']}
 
-            # Runs the forward pass with autocasting for mixed precission.
             with autocast(self.amp_device):
-                # forward + backward + optimize
                 outputs = self.model(X)
 
-            # remove the image pads
             outputs['mask'] = outputs['mask'][:, :, :350, :350]
 
-            # log predictions and labels for metrics later
+   
             n_samples = Y['mask'].shape[0]
             preds = torch.argmax(outputs['mask'], dim=1).reshape((n_samples, -1))
             preds_logged_test[i * self.eval_batchsize: i * self.eval_batchsize + n_samples] = preds.cpu()
@@ -236,11 +225,6 @@ class DLv3Plus(base.BenchmarkMethod):
         self.model.to(self.device)
 
     def print_run_info(self):
-        """
-        Print information about training
-        Returns:
-
-        """
         print()
         print("-" * 80)
         print('training for ', self.epochs, ' epochs')
